@@ -1,0 +1,17 @@
+{
+  "name": "AI献立メーカー",
+  "short_name": "献立メーカー",
+  "description": "冷蔵庫の食材とAIで最適な献立を自動提案するアプリ",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f0c29",
+  "theme_color": "#8a2be2",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

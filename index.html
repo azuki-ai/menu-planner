@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI献立メーカー - スマートな食事管理</title>
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8a2be2">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <!-- Fonts and Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i data-lucide="utensils"></i>
+                <h1>AI献立メーカー</h1>
+            </div>
+            <div class="header-actions">
+                <button id="settingsBtn" class="icon-btn" aria-label="設定" title="APIキー設定">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- API Key Modal -->
+        <div id="apiKeyModal" class="modal hidden">
+            <div class="modal-content glass">
+                <div class="modal-header">
+                    <h2>APIキーの設定</h2>
+                    <button id="closeSettingsBtn" class="icon-btn"><i data-lucide="x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-desc">このアプリは完全無料で動作しますが、Google Gemini APIを利用するため、ご自身のAPIキーが必要です。<a href="https://aistudio.google.com/app/apikey" target="_blank">こちらから取得</a>できます。（キーはブラウザ内にのみ保存されます）</p>
+                    <div class="form-group">
+                        <label for="apiKey">Google Gemini API Key</label>
+                        <input type="password" id="apiKey" placeholder="AIzaSy...">
+                    </div>
+                    <button id="saveApiKeyBtn" class="btn btn-primary">保存する</button>
+                </div>
+            </div>
+        </div>
+
+        <main id="mainContent">
+            <!-- Input Form Section -->
+            <section id="formSection" class="glass card">
+                <h2>献立の条件を入力</h2>
+                <form id="menuForm">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="adults"><i data-lucide="users"></i> 大人（人）</label>
+                            <input type="number" id="adults" min="1" value="2" required>
+                        </div>
+                        <div class="form-group half">
+                            <label for="children"><i data-lucide="baby"></i> 子供（人）</label>
+                            <input type="number" id="children" min="0" value="0" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days"><i data-lucide="calendar"></i> 提案日数（最大4日）</label>
+                        <input type="number" id="days" min="1" max="4" value="3" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="purpose"><i data-lucide="target"></i> 目的・要望（自由入力）</label>
+                        <input type="text" id="purpose" placeholder="例: ダイエット、節約、時短、筋肉アップなど" value="時短・節約">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i data-lucide="refrigerator"></i> 冷蔵庫にある食材 (Enterで追加)</label>
+                        <div class="tag-input-container">
+                            <ul id="ingredientsList" class="tag-list"></ul>
+                            <input type="text" id="ingredientInput" placeholder="例: 豚肉、キャベツ、卵">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="generateBtn" class="btn btn-glow">
+                        <i data-lucide="sparkles"></i>
+                        <span>AIで献立を生成する</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Loading State -->
+            <section id="loadingSection" class="hidden">
+                <div class="loader">
+                    <div class="spinner"></div>
+                    <p>AIが最適な献立を考えています...</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultSection" class="hidden">
+                <div class="result-header">
+                    <h2>✨ あなたにぴったりの献立</h2>
+                    <div class="result-actions">
+                        <button id="shareBtn" class="btn btn-outline">
+                            <i data-lucide="share-2"></i> 共有リンクをコピー
+                        </button>
+                        <button id="resetBtn" class="btn btn-text">最初からやり直す</button>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="menu">献立＆レシピ</button>
+                    <button class="tab-btn" data-tab="shopping">買い出しリスト</button>
+                </div>
+
+                <div id="tab-menu" class="tab-content active">
+                    <div id="menuContainer" class="menu-grid"></div>
+                </div>
+
+                <div id="tab-shopping" class="tab-content hidden glass card">
+                    <h3>買い出しリスト (冷蔵庫の食材を除外済み)</h3>
+                    <ul id="shoppingListContainer" class="shopping-list"></ul>
+                </div>
+            </section>
+
+            <!-- Error State -->
+            <section id="errorSection" class="hidden glass card border-red">
+                <div class="error-content">
+                    <i data-lucide="alert-triangle" class="text-red"></i>
+                    <h3 id="errorTitle">エラーが発生しました</h3>
+                    <p id="errorMessage"></p>
+                    <button id="errorBackBtn" class="btn btn-primary mt-4">戻る</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Share Toast -->
+    <div id="toast" class="toast hidden">リンクをクリップボードにコピーしました！</div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful');
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
